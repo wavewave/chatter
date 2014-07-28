@@ -42,7 +42,27 @@ server tvar = do
         [] -> writeTVar tvar [Message 0 msg] 
     threadDelay 1000000
   -- 
-  serve (Host "127.0.0.1") "5002" $ \(sock, remoteAddr) -> do
+  forkIO $ serve (Host "127.0.0.1") "5002" $ \(sock, remoteAddr) -> do
+    putStrLn $ "Server: TCP connection established from " ++ show remoteAddr 
+    forever $ do
+      r <- runMaybeT $ recvAndUnpack sock 
+{-             sz_bstr <- MaybeT $ recv sock 4
+             let sz :: Bi.Word32 = (Bi.decode . toLazy) sz_bstr
+             str <- MaybeT $ recv sock (fromIntegral sz)
+             let lastnum :: Int = (Bi.decode . toLazy) str
+             return lastnum -}
+      case r of
+        Nothing -> return ()
+        Just lastnum -> do
+          msgs <- atomically $ do 
+                    lst <- readTVar tvar
+                    let lst' = filter ((>lastnum) .  lineno) lst
+                    if null lst' then retry else return lst'
+          packAndSend sock msgs
+  getLine
+  return ()
+{-           
+  serve (Host "127.0.0.1") "5003" $ \(sock, remoteAddr) -> do
     putStrLn $ "Server: TCP connection established from " ++ show remoteAddr 
     forever $ do
       r <- runMaybeT $ do 
@@ -59,15 +79,6 @@ server tvar = do
                     let lst' = filter ((>lastnum) .  lineno) lst
                     if null lst' then retry else return lst'
           packAndSend sock msgs
-          {- 
-          let bmsg = (toStrict . Bi.encode) msgs
-              sz :: Word32 = fromIntegral (B.length bmsg)
-              sz_bstr = (toStrict . Bi.encode) sz
-
-          send sock sz_bstr
-          send sock bmsg
-          -}
-           
 
 
-
+-}

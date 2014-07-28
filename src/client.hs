@@ -28,18 +28,10 @@ client addr = do
       putStrLn $ "Client: Connection established to " ++ show addr
       runMaybeT $ clientWorker sock (-1)
       return ()
-    {- connect addr "5003" $ \(sock, addr) -> do
-      runMaybeT $ inputlineWorker sock
-      return () -}
     getLine 
     return () 
   where clientWorker sock n = do 
           liftIO $ packAndSend sock n
-{-           let bmsg' = (toStrict . Bi.encode) n
-              sz' :: Bi.Word32 = fromIntegral (B.length bmsg')
-              sz_bstr' = (toStrict . Bi.encode) sz'
-          liftIO (send sock sz_bstr')
-          liftIO (send sock bmsg') -}
           -- 
           sz_bstr <- MaybeT $ recv sock 4
           let sz :: Bi.Word32 = (Bi.decode . toLazy) sz_bstr
@@ -54,18 +46,12 @@ client addr = do
           liftIO $ TIO.putStrLn txt
           inputlineWorker sock
  
- {-
-          let bmsg = TE.encodeUtf8 txt
-              sz :: Bi.Word32 = fromIntegral (B.length bmsg)
-              sz_bstr = (toStrict . Bi.encode) sz  
-              
-   -}       
 
 
 main :: IO ()
 main = do 
   putStrLn "chatting client" 
   args <- getArgs
-  client (args !! 0) -- >> threadDelay 1000000
+  client (args !! 0)
  
 
