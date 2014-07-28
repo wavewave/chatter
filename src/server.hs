@@ -22,13 +22,6 @@ import Message
 import Util
 
 
-tick :: IO ()
-tick = do 
-  putStrLn "tick" 
-  threadDelay 1000000
-  tick 
-
-
 main :: IO ()
 main = do 
   putStrLn "chatting program server" 
