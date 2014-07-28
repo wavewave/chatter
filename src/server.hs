@@ -58,13 +58,16 @@ server tvar = do
                     lst <- readTVar tvar
                     let lst' = filter ((>lastnum) .  lineno) lst
                     if null lst' then retry else return lst'
+          packAndSend sock msgs
+          {- 
           let bmsg = (toStrict . Bi.encode) msgs
               sz :: Word32 = fromIntegral (B.length bmsg)
               sz_bstr = (toStrict . Bi.encode) sz
 
           send sock sz_bstr
           send sock bmsg
-
+          -}
+           
 
 
 
