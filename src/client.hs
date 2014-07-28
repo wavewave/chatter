@@ -28,25 +28,21 @@ client addr = do
       putStrLn $ "Client: Connection established to " ++ show addr
       runMaybeT $ clientWorker sock (-1)
       return ()
-    getLine 
+    connect addr "5003" $ \(sock, addr) -> do
+      putStrLn $ "Client: Connection established to " ++ show addr
+      inputlineWorker sock
     return () 
   where clientWorker sock n = do 
           liftIO $ packAndSend sock n
-          -- 
-          sz_bstr <- MaybeT $ recv sock 4
-          let sz :: Bi.Word32 = (Bi.decode . toLazy) sz_bstr
-          str <- MaybeT $ recv sock (fromIntegral sz)
-          let msgs :: [Message] = (Bi.decode . toLazy) str 
+          msgs :: [Message] <- recvAndUnpack sock 
           mapM_ (liftIO . TIO.putStrLn . formatMessage) (reverse msgs)
           if ((not . null) msgs) 
             then clientWorker sock ((lineno . head) msgs)
             else clientWorker sock 0
         inputlineWorker sock = do
-          txt <- liftIO $ TIO.getLine
-          liftIO $ TIO.putStrLn txt
+          txt <- TIO.getLine
+          packAndSend sock (TE.encodeUtf8 txt)
           inputlineWorker sock
- 
-
 
 main :: IO ()
 main = do 
