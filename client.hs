@@ -12,6 +12,8 @@ import qualified Data.ByteString.Lazy as BWL
 import Network.Simple.TCP
 import System.Environment
 import System.IO
+--
+import Message
 
 tick :: IO ()
 tick = do 
@@ -29,8 +31,9 @@ client addr = do
       runMaybeT $ do 
         sz_bstr <- MaybeT $ recv sock 4
         let sz :: Bi.Word32 = Bi.decode (BWL.fromChunks [sz_bstr]) 
-        str <- MaybeT $ recv sock (fromIntegral sz) 
-        liftIO $ print str 
+        str <- MaybeT $ recv sock (fromIntegral sz)
+        let msg :: Message = Bi.decode (BWL.fromChunks [str]) 
+        liftIO $ print msg
       return ()
 
 

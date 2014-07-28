@@ -15,6 +15,9 @@ import           Data.Word as W
 -- import Network
 import Network.Simple.TCP
 import System.IO
+-- 
+import Message
+
 
 tick :: IO ()
 tick = do 
@@ -37,8 +40,9 @@ server = do
 
     F.forM_ [1..] $ \n -> do 
       threadDelay 1000000
-      let txtmsg = "mesg " <> T.pack (show n) <> ": hello. I am server" 
-          bmsg = TE.encodeUtf8 txtmsg
+      let msg = Message n "hello. I am server" 
+          -- bmsg = TE.encodeUtf8 txtmsg
+          bmsg = (mconcat . BWL.toChunks . Bi.encode) msg
           sz :: Word32 = fromIntegral (B.length bmsg)
           sz_bstr = (mconcat . BWL.toChunks . Bi.encode) sz 
       print sz
