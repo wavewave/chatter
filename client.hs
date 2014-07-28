@@ -6,6 +6,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Maybe
 
 import qualified Data.Binary as Bi
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BWL
 
 -- import Network
@@ -14,6 +15,7 @@ import System.Environment
 import System.IO
 --
 import Message
+import Util
 
 tick :: IO ()
 tick = do 
@@ -24,17 +26,29 @@ tick = do
 -- bufSize = 10 -- 1024 
 
 client :: String -> IO ()
-client addr = do
-  connect addr "5002" $ \(sock, remoteAddr) -> do
-    putStrLn $ "Client: Connection established to " ++ show remoteAddr 
-    forever $ do 
-      runMaybeT $ do 
-        sz_bstr <- MaybeT $ recv sock 4
-        let sz :: Bi.Word32 = Bi.decode (BWL.fromChunks [sz_bstr]) 
-        str <- MaybeT $ recv sock (fromIntegral sz)
-        let msg :: Message = Bi.decode (BWL.fromChunks [str]) 
-        liftIO $ print msg
-      return ()
+client addr = 
+  do          putStrLn "hello" 
+              
+              connect addr "5002" $ \(sock, remoteAddr) -> do
+                putStrLn $ "Client: Connection established to " ++ show remoteAddr
+                runMaybeT $ clientWorker sock (-1)
+                return ()
+  where clientWorker sock n = do 
+          let bmsg' = (toStrict . Bi.encode) n
+              sz' :: Bi.Word32 = fromIntegral (B.length bmsg')
+              sz_bstr' = (toStrict . Bi.encode) sz'
+          liftIO (send sock sz_bstr')
+          liftIO (send sock bmsg')
+          -- 
+          sz_bstr <- MaybeT $ recv sock 4
+          let sz :: Bi.Word32 = (Bi.decode . toLazy) sz_bstr
+          str <- MaybeT $ recv sock (fromIntegral sz)
+          let msg :: [Message] = (Bi.decode . toLazy) str
+          liftIO $ print msg
+          if ((not . null) msg) 
+            then clientWorker sock ((lineno . head) msg)
+            else clientWorker sock 0
+          -- return ()
 
 
 main :: IO ()

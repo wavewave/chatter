@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Control.Concurrent 
-import Control.Monad
+import Control.Concurrent
+import Control.Concurrent.STM
+import           Control.Monad
+import           Control.Monad.Trans.Maybe
 import qualified Data.Binary as Bi
 import qualified Data.ByteString as BW
 import qualified Data.ByteString.Lazy as BWL 
@@ -17,6 +19,7 @@ import Network.Simple.TCP
 import System.IO
 -- 
 import Message
+import Util
 
 
 tick :: IO ()
@@ -29,25 +32,45 @@ tick = do
 main :: IO ()
 main = do 
   putStrLn "chatting program server" 
-  server
+  tvar <- atomically (newTVar [])
+  server tvar
   return ()
 
 
-server :: IO () 
-server = do 
-  serve (Host "127.0.0.1") "5002" $ \(connectionSocket, remoteAddr) -> do
+server :: TVar [Message] -> IO () 
+server tvar = do 
+  forkIO $ forever $ do 
+    let msg = "hello. I am server" 
+    atomically $ do 
+      lst <- readTVar tvar
+      case lst of
+        y:ys -> let n = lineno y + 1
+                in writeTVar tvar (Message n msg : lst)
+        [] -> writeTVar tvar [Message 0 msg] 
+    threadDelay 1000000
+  -- 
+  serve (Host "127.0.0.1") "5002" $ \(sock, remoteAddr) -> do
     putStrLn $ "Server: TCP connection established from " ++ show remoteAddr 
+    forever $ do
+      r <- runMaybeT $ do 
+             sz_bstr <- MaybeT $ recv sock 4
+             let sz :: Bi.Word32 = (Bi.decode . toLazy) sz_bstr
+             str <- MaybeT $ recv sock (fromIntegral sz)
+             let lastnum :: Int = (Bi.decode . toLazy) str
+             return lastnum
+      case r of
+        Nothing -> return ()
+        Just lastnum -> do
+          msgs <- atomically $ do 
+                    lst <- readTVar tvar
+                    let lst' = filter ((>lastnum) .  lineno) lst
+                    if null lst' then retry else return lst'
+          let bmsg = (toStrict . Bi.encode) msgs
+              sz :: Word32 = fromIntegral (B.length bmsg)
+              sz_bstr = (toStrict . Bi.encode) sz
 
-    F.forM_ [1..] $ \n -> do 
-      threadDelay 1000000
-      let msg = Message n "hello. I am server" 
-          -- bmsg = TE.encodeUtf8 txtmsg
-          bmsg = (mconcat . BWL.toChunks . Bi.encode) msg
-          sz :: Word32 = fromIntegral (B.length bmsg)
-          sz_bstr = (mconcat . BWL.toChunks . Bi.encode) sz 
-      print sz
-      send connectionSocket sz_bstr
-      send connectionSocket bmsg
+          send sock sz_bstr
+          send sock bmsg
 
 
 
