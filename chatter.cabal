@@ -17,13 +17,14 @@ cabal-version:       >=1.10
 
 executable chatserver
   main-is: server.hs           
-  ghc-options: 	-Wall -Werror  -fno-warn-unused-do-bind
+  ghc-options: 	-Wall -fno-warn-unused-do-bind
   other-modules:       Common
                        
   other-extensions:    InstanceSigs, RecordWildCards
   build-depends:       base == 4.*,
                        bytestring, 
                        binary, 
+                       monad-loops,
                        network-simple,
                        stm,
                        text, 
@@ -33,7 +34,7 @@ executable chatserver
 
 executable chatclient
   main-is: client.hs
-  ghc-options: 	-Wall -Werror  -fno-warn-unused-do-bind
+  ghc-options: 	-Wall -fno-warn-unused-do-bind
   other-modules:       Common 
 
   other-extensions:    InstanceSigs, RecordWildCards
