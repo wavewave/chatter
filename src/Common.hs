@@ -22,10 +22,6 @@ instance Bi.Binary Message where
            let txt = TE.decodeUtf8 txtbstr
            return (Message n txt)
 
--- [Message]
-
-
-
 packNumBytes :: S.ByteString -> S.ByteString
 packNumBytes bstr = 
   let len = (fromIntegral . S.length) bstr :: Bi.Word32
@@ -54,4 +50,7 @@ recvAndUnpack sock = do
           Nothing -> return Nothing
           Just msg -> (return . Just . Bi.decode . L.fromStrict) msg  
 
+
+prettyPrintMessage :: Message -> String
+prettyPrintMessage (Message n txt) = show n ++ " : " ++ T.unpack txt
 
