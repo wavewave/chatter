@@ -61,8 +61,8 @@ registerMessage tvar (user,txt) =
 main :: IO ()
 main = do 
   putStrLn " I am server " 
-  tvar <- atomically $ newTVar ((0,[]) :: (Int,[Message]) )
-  tvarLog <- atomically $ newTVar ([] :: [Message])
+  tvar <- atomically $ newTVar (0,[]) -- :: (Int,[Message]) )
+  tvarLog <- atomically $ newTVar []  -- :: [Message])
   forkIO $ messagequeue tvar tvarLog
   forkIO $ broadcaster tvarLog
   receiver tvar
