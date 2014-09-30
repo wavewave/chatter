@@ -14,13 +14,13 @@ import           Network.Simple.TCP
 --
 import           Common
 
-messagequeue :: TVar [Message] -> TVar [Message] -> IO ()
+messagequeue :: TVar (Int,[Message]) -> TVar [Message] -> IO ()
 messagequeue tvar tvarLog = forever $ atomically $ do 
-    bufmsgs <-readTVar tvar
+    (n,bufmsgs) <-readTVar tvar
     if null bufmsgs 
       then retry 
       else do 
-        writeTVar tvar []
+        writeTVar tvar (n,[])
         logs <- readTVar tvarLog
         let newlogs = bufmsgs ++ logs
         writeTVar tvarLog newlogs 
@@ -41,29 +41,28 @@ broadcaster tvarLog = do
     go 0
 
 
+receiver :: TVar (Int,[Message]) -> IO ()
+receiver tvar = 
+  serve HostAny "5003" $ \(sock,addr) -> do  
+    putStrLn $ "Getting message from " ++ show addr
+    whileJust_ (recvAndUnpack sock) $ \txt -> do
+        putStrLn $ "got message : " ++ T.unpack txt
+        registerMessage tvar txt
+
+
+
+registerMessage :: TVar (Int,[Message]) -> T.Text -> IO ()
+registerMessage tvar txt = 
+    atomically $ do 
+      (n,txts) <- readTVar tvar
+      writeTVar tvar (n+1, Message (n+1) txt : txts)
 
 main :: IO ()
 main = do 
   putStrLn " I am server " 
-  tvar <- atomically $ newTVar ([] :: [Message] )
+  tvar <- atomically $ newTVar ((0,[]) :: (Int,[Message]) )
   tvarLog <- atomically $ newTVar ([] :: [Message])
   forkIO $ messagequeue tvar tvarLog
   forkIO $ broadcaster tvarLog
+  receiver tvar
 
-  serve HostAny "5003" $ \(sock,addr) -> do  
-    putStrLn $ "Getting message from " ++ show addr
-    flip evalStateT 0 $ 
-      whileJust_ (lift (recvAndUnpack sock)) $ \txt -> do
-        liftIO $ putStrLn $ "got message : " ++ T.unpack txt
-        registerMessage tvar txt
-  -- 
-  getLine
-  return ()
-
-registerMessage :: TVar [Message] -> T.Text -> StateT Int IO ()
-registerMessage tvar txt = do
-    n <- get
-    liftIO $ atomically $ do 
-      txts <- readTVar tvar
-      writeTVar tvar ((Message n txt):txts)
-    put (n+1)
