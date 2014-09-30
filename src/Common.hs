@@ -3,13 +3,15 @@ module Common where
 import qualified Data.Binary as Bi
 import qualified Data.ByteString as S 
 import qualified Data.ByteString.Lazy as L
+import           Data.List (sortBy)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 
 import Network.Simple.TCP
 
 
-data Message = Message Int T.Text
+data Message = Message { messageNum :: Int 
+                       , messageBody :: T.Text }
              deriving Show
 
 instance Bi.Binary Message where 
@@ -54,3 +56,5 @@ recvAndUnpack sock = do
 prettyPrintMessage :: Message -> String
 prettyPrintMessage (Message n txt) = show n ++ " : " ++ T.unpack txt
 
+checkLatestMessage :: [Message] -> Int
+checkLatestMessage msgs = (head . sortBy (flip compare) . map messageNum) msgs

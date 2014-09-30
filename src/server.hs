@@ -8,6 +8,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Loops
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
+import           Data.List (sortBy)
 import qualified Data.Text as T
 import           Data.Text.Binary
 import           Network.Simple.TCP
@@ -31,14 +32,13 @@ broadcaster tvarLog = do
     putStrLn $ "TCP connection established from " ++ show addr
     let go n = do (n',logs) <- atomically $ do
                                  logs <- readTVar tvarLog
-                                 let n' = length logs
-                                 if length logs == n 
-                                   then retry
-                                   else return (n',logs)
-                  print logs
-                  packAndSend sock logs 
+                                 if null logs then retry else do
+                                   let n' = checkLatestMessage logs
+                                   if n' > n then return (n',logs) else retry
+                  packAndSend sock (filter ((>n) . messageNum) logs) 
                   go n'
-    go 0
+    go (-1)
+
 
 
 receiver :: TVar (Int,[Message]) -> IO ()
