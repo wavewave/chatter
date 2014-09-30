@@ -1,53 +1,31 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-} 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-import Control.Concurrent 
-
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Maybe
-
-
-
-import           Data.Monoid
+import qualified Data.Binary as Bi
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
-import qualified Data.Text.IO as TIO
+
+import Control.Concurrent (threadDelay, forkIO)
+import Control.Monad (forever)
 import Network.Simple.TCP
-import System.Environment
-
 --
-import Message
-import Util
+import Common
 
-formatMessage :: Message -> T.Text
-formatMessage msg = T.pack (show (lineno msg)) <> ": " <> msgbody msg
-
-client :: String -> IO ()
-client addr = do 
-    forkIO $ connect addr "5002" $ \(sock, servaddr) -> do
-      putStrLn $ "Client: Connection established to " ++ show servaddr
-      runMaybeT $ clientWorker sock (-1)
-      return ()
-    connect addr "5003" $ \(sock, servaddr) -> do
-      putStrLn $ "Client: Connection established to " ++ show servaddr
-      inputlineWorker sock
-    return () 
-  where clientWorker sock n = do 
-          liftIO $ packAndSend sock n
-          msgs :: [Message] <- recvAndUnpack sock 
-          mapM_ (liftIO . TIO.putStrLn . formatMessage) (reverse msgs)
-          if ((not . null) msgs) 
-            then clientWorker sock ((lineno . head) msgs)
-            else clientWorker sock (-1)
-        inputlineWorker sock = do
-          txt <- TIO.getLine
-          packAndSend sock (TE.encodeUtf8 txt)
-          inputlineWorker sock
 
 main :: IO ()
 main = do 
-  putStrLn "chatting client" 
-  args <- getArgs
-  client (args !! 0)
- 
+  putStrLn " i am client " 
 
+  forkIO $ connect "127.0.0.1" "5002" $ \(sock,addr) -> do 
+    putStrLn $ "Connection established to " ++ show addr
+    forever $ do
+      x :: Maybe [Message] <- recvAndUnpack sock 
+      putStrLn $ "server sent : " ++ show x
+
+  connect "127.0.0.1" "5003" $ \(sock,addr) -> forever $ do
+    str <- getLine :: IO String
+    packAndSend sock (Message 10 (T.pack str))
+
+      -- (Message 10 (T.pack str))
+        
