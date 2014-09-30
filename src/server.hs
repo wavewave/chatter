@@ -45,17 +45,18 @@ receiver :: TVar (Int,[Message]) -> IO ()
 receiver tvar = 
   serve HostAny "5003" $ \(sock,addr) -> do  
     putStrLn $ "Getting message from " ++ show addr
-    whileJust_ (recvAndUnpack sock) $ \txt -> do
+    whileJust_ (recvAndUnpack sock) $ \(user,txt) -> do
+        putStrLn $ "from nickname : " ++ T.unpack user
         putStrLn $ "got message : " ++ T.unpack txt
-        registerMessage tvar txt
+        registerMessage tvar (user,txt)
 
 
 
-registerMessage :: TVar (Int,[Message]) -> T.Text -> IO ()
-registerMessage tvar txt = 
+registerMessage :: TVar (Int,[Message]) -> (T.Text,T.Text) -> IO ()
+registerMessage tvar (user,txt) = 
     atomically $ do 
       (n,txts) <- readTVar tvar
-      writeTVar tvar (n+1, Message (n+1) txt : txts)
+      writeTVar tvar (n+1, Message (n+1) user txt : txts)
 
 main :: IO ()
 main = do 
